@@ -27,12 +27,14 @@ fn main() {
 fn convert_base(opt: Opt) -> Result<String, BaseError> {
     let input = opt.get_input()?;
     let output = opt.get_output()?;
-    println!(
-        "Converting {} from {} to {}",
-        &opt.value,
-        input.repr(),
-        output.repr()
-    );
+    if opt.verbose {
+        println!(
+            "Converting {} from {} to {}",
+            &opt.value,
+            input.repr(),
+            output.repr()
+            );
+    }
 
     let num = input.to_u128(opt.value)?;
     Ok(output.from_u128(num))

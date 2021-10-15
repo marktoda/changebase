@@ -29,7 +29,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "base"
+name = "bitflags"
+version = "1.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+
+[[package]]
+name = "changebase"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -37,12 +43,6 @@ dependencies = [
  "structopt",
  "thiserror",
 ]
-
-[[package]]
-name = "bitflags"
-version = "1.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "clap"

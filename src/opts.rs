@@ -37,6 +37,10 @@ pub struct Opt {
 
     #[structopt(flatten)]
     short_base_opts: ShortBaseOpts,
+
+    /// add verbosity
+    #[structopt(short)]
+    pub verbose: bool,
 }
 
 
