@@ -3,6 +3,7 @@ use structopt::StructOpt;
 mod opts;
 use opts::Opt;
 mod base;
+use base::Value;
 mod errors;
 use errors::BaseError;
 
@@ -36,6 +37,6 @@ fn convert_base(opt: Opt) -> Result<String, BaseError> {
             );
     }
 
-    let num = input.to_internal(opt.value)?;
-    Ok(output.from_internal(num))
+    let num = Value::from(opt.value, input)?;
+    Ok(num.to_base(output))
 }

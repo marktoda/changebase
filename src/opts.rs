@@ -12,6 +12,17 @@ arg_enum! {
     }
 }
 
+impl Base {
+    pub fn repr(&self) -> String {
+        match *self {
+            Base::Bin => "Binary".to_string(),
+            Base::Oct => "Octal".to_string(),
+            Base::Dec => "Decimal".to_string(),
+            Base::Hex => "Hexadecimal".to_string(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(name = "base", about = "numeric base converter")]
 pub struct Opt {
