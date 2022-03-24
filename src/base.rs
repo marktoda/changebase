@@ -96,3 +96,14 @@ fn is_valid_hex(value: String) -> bool {
     }
     return true;
 }
+
+pub fn detect_base(value: String) -> Result<Base, BaseError> {
+    if is_valid_bin(value.clone()) { return Ok(Base::Bin) };
+    if is_valid_oct(value.clone()) { return Ok(Base::Oct) };
+    if is_valid_dec(value.clone()) { return Ok(Base::Dec) };
+    if is_valid_hex(value) { return Ok(Base::Hex) };
+
+    Err(BaseError::ParseError {
+        message: "Unable to detect base",
+    })
+}

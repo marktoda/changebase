@@ -1,3 +1,4 @@
+#![feature(result_option_inspect)]
 use structopt::StructOpt;
 
 mod opts;

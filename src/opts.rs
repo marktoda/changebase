@@ -1,6 +1,7 @@
 use clap::arg_enum;
 use structopt::StructOpt;
 use crate::errors::BaseError;
+use crate::base::detect_base;
 
 arg_enum! {
     #[derive(Debug, Clone)]
@@ -26,7 +27,7 @@ impl Base {
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(name = "base", about = "numeric base converter")]
 pub struct Opt {
-    /// Input base to use
+    /// Input base to use. If not given, attempts to detect
     #[structopt(
         long = "input",
         short = "in",
@@ -119,7 +120,9 @@ impl Opt {
         } else if self.short_base_opts.hex_input {
             Ok(Base::Hex)
         } else {
-            Err(BaseError::ArgError { message: "No input base specified" })
+            detect_base(self.value.clone())
+                .map_err(|_| BaseError::ArgError { message: "No input base specified" })
+                .inspect(|b| println!("Detected base {}", b.repr()))
         }
     }
 
