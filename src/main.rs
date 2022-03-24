@@ -36,6 +36,6 @@ fn convert_base(opt: Opt) -> Result<String, BaseError> {
             );
     }
 
-    let num = input.to_u128(opt.value)?;
-    Ok(output.from_u128(num))
+    let num = input.to_internal(opt.value)?;
+    Ok(output.from_internal(num))
 }

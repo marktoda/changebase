@@ -1,6 +1,6 @@
 use crate::errors::BaseError;
 use crate::opts::Base;
-use std::u128;
+use num::{Num, bigint::BigUint};
 
 impl Base {
     pub fn repr(&self) -> String {
@@ -42,24 +42,24 @@ impl Base {
         };
     }
 
-    pub fn to_u128(&self, value: String) -> Result<u128, BaseError> {
+    pub fn to_internal(&self, value: String) -> Result<BigUint, BaseError> {
         self.validate(value.clone())?;
 
         match *self {
-            Base::Bin => u128::from_str_radix(value.as_str(), 2),
-            Base::Oct => u128::from_str_radix(value.as_str(), 8),
-            Base::Dec => u128::from_str_radix(value.as_str(), 10),
-            Base::Hex => u128::from_str_radix(value.trim_start_matches("0x"), 16),
+            Base::Bin => BigUint::from_str_radix(value.as_str(), 2),
+            Base::Oct => BigUint::from_str_radix(value.as_str(), 8),
+            Base::Dec => BigUint::from_str_radix(value.as_str(), 10),
+            Base::Hex => BigUint::from_str_radix(value.trim_start_matches("0x"), 16),
         }
         .map_err(|_| self.get_parse_error())
     }
 
-    pub fn from_u128(&self, value: u128) -> String {
+    pub fn from_internal(&self, value: BigUint) -> String {
         match *self {
-            Base::Bin => format!("{:b}", value),
-            Base::Oct => format!("{:o}", value),
-            Base::Dec => format!("{}", value),
-            Base::Hex => format!("{:x}", value),
+            Base::Bin => value.to_str_radix(2),
+            Base::Oct => value.to_str_radix(8),
+            Base::Dec => value.to_str_radix(10),
+            Base::Hex => value.to_str_radix(16),
         }
     }
 }
