@@ -2,6 +2,13 @@
 
 A CLI tool for changing the base of numbers. 
 
+## Install
+```
+cargo install changebase
+```
+
+## Usage
+
 ```
 > changebase -h
 

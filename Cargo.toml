@@ -4,6 +4,8 @@ authors = ["Mark Toda"]
 license = "GPL-3.0"
 version = "0.1.0"
 edition = "2018"
+description = "Light CLI tool to convert numbers from one base to another."
+repository = "https://github.com/marktoda/changebase"
 
 [[bin]]
 name = "changebase"
