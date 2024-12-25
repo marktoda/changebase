@@ -1,7 +1,7 @@
+use crate::base::detect_base;
+use crate::errors::BaseError;
 use clap::arg_enum;
 use structopt::StructOpt;
-use crate::errors::BaseError;
-use crate::base::detect_base;
 
 arg_enum! {
     #[derive(Debug, Clone)]
@@ -55,55 +55,38 @@ pub struct Opt {
     pub verbose: bool,
 }
 
-
 #[derive(Clone, Debug, StructOpt)]
 struct ShortBaseOpts {
     /// use binary as input base
-    #[structopt(
-        long = "ib",
-    )]
+    #[structopt(long = "ib")]
     pub binary_input: bool,
 
     /// use octal as input base
-    #[structopt(
-        long = "io",
-    )]
+    #[structopt(long = "io")]
     pub octal_input: bool,
 
     /// use decimal as input base
-    #[structopt(
-        long = "id",
-    )]
+    #[structopt(long = "id")]
     pub decimal_input: bool,
 
     /// use hex as input base
-    #[structopt(
-        long = "ih",
-    )]
+    #[structopt(long = "ih")]
     pub hex_input: bool,
 
     /// use binary as output base
-    #[structopt(
-        long = "ob",
-    )]
+    #[structopt(long = "ob")]
     pub binary_output: bool,
 
     /// use octal as output base
-    #[structopt(
-        long = "oo",
-    )]
+    #[structopt(long = "oo")]
     pub octal_output: bool,
 
     /// use decimal as output base
-    #[structopt(
-        long = "od",
-    )]
+    #[structopt(long = "od")]
     pub decimal_output: bool,
 
     /// use hex as output base
-    #[structopt(
-        long = "oh",
-    )]
+    #[structopt(long = "oh")]
     pub hex_output: bool,
 }
 
@@ -121,7 +104,9 @@ impl Opt {
             Ok(Base::Hex)
         } else {
             detect_base(self.value.clone())
-                .map_err(|_| BaseError::ArgError { message: "No input base specified" })
+                .map_err(|_| BaseError::ArgError {
+                    message: "No input base specified",
+                })
                 .inspect(|b| println!("Detected base {}", b.repr()))
         }
     }
@@ -138,7 +123,9 @@ impl Opt {
         } else if self.short_base_opts.hex_output {
             Ok(Base::Hex)
         } else {
-            Err(BaseError::ArgError { message: "No output base specified" })
+            Err(BaseError::ArgError {
+                message: "No output base specified",
+            })
         }
     }
 }

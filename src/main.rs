@@ -1,4 +1,3 @@
-#![feature(result_option_inspect)]
 use structopt::StructOpt;
 
 mod opts;
@@ -18,7 +17,7 @@ fn main() {
         match e {
             BaseError::ParseError { message } => {
                 eprintln!("Error parsing value: {}", message)
-            },
+            }
             BaseError::ArgError { message } => {
                 eprintln!("Invalid arguments: {}", message)
             }
@@ -35,7 +34,7 @@ fn convert_base(opt: Opt) -> Result<String, BaseError> {
             &opt.value,
             input.repr(),
             output.repr()
-            );
+        );
     }
 
     let num = Value::from(opt.value, input)?;
