@@ -20,18 +20,12 @@
           inherit system;
           pkgs = nixpkgs.legacyPackages.${system};
         });
-    manifest = (nixpkgs.lib.importTOML ./Cargo.toml).package;
   in {
-    packages = forAllSystems ({
-      pkgs,
-      system,
-    }: {
-      default = pkgs.rustPlatform.buildRustPackage {
-        pname = manifest.name;
-        version = manifest.version;
-        cargoLock.lockFile = ./Cargo.lock;
-        src = pkgs.lib.cleanSource ./.;
-      };
+    packages = forAllSystems ({pkgs, ...}: {
+      default = pkgs.callPackage ./default.nix {};
+    });
+    devShells = forAllSystems ({pkgs, ...}: {
+      default = pkgs.callPackage ./shell.nix {};
     });
   };
 }
