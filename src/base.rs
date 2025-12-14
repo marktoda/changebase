@@ -8,13 +8,15 @@ pub struct Value {
 
 impl Value {
     pub fn from(value: String, base: Base) -> Result<Value, BaseError> {
-        Value::validate(base.clone(), value.clone())?;
+        // Strip prefix if present
+        let stripped = strip_prefix(&value, base);
+        Value::validate(base, stripped.clone())?;
 
         match base {
-            Base::Bin => BigUint::from_str_radix(value.as_str(), 2),
-            Base::Oct => BigUint::from_str_radix(value.as_str(), 8),
-            Base::Dec => BigUint::from_str_radix(value.as_str(), 10),
-            Base::Hex => BigUint::from_str_radix(value.trim_start_matches("0x"), 16),
+            Base::Bin => BigUint::from_str_radix(&stripped, 2),
+            Base::Oct => BigUint::from_str_radix(&stripped, 8),
+            Base::Dec => BigUint::from_str_radix(&stripped, 10),
+            Base::Hex => BigUint::from_str_radix(&stripped, 16),
         }
         .map_err(|_| Value::get_parse_error(base))
         .map(|value| Value { value })
@@ -30,12 +32,13 @@ impl Value {
     }
 
     fn validate(base: Base, value: String) -> Result<(), BaseError> {
-        if match base {
-            Base::Bin => is_valid_bin(value),
-            Base::Oct => is_valid_oct(value),
-            Base::Dec => is_valid_dec(value),
-            Base::Hex => is_valid_hex(value),
-        } {
+        let valid = match base {
+            Base::Bin => is_valid_bin(&value),
+            Base::Oct => is_valid_oct(&value),
+            Base::Dec => is_valid_dec(&value),
+            Base::Hex => is_valid_hex(&value),
+        };
+        if valid {
             Ok(())
         } else {
             Err(Value::get_parse_error(base))
@@ -60,55 +63,100 @@ impl Value {
     }
 }
 
-fn is_valid_bin(value: String) -> bool {
-    for c in value.chars() {
-        if !(c == '0' || c == '1') {
-            return false;
-        }
+/// Strip the prefix from a value for the given base
+fn strip_prefix(value: &str, base: Base) -> String {
+    let lower = value.to_lowercase();
+    match base {
+        Base::Bin => lower.strip_prefix("0b").unwrap_or(value).to_string(),
+        Base::Oct => lower.strip_prefix("0o").unwrap_or(value).to_string(),
+        Base::Hex => lower.strip_prefix("0x").unwrap_or(value).to_string(),
+        Base::Dec => value.to_string(),
     }
-    return true;
 }
 
-fn is_valid_oct(value: String) -> bool {
-    for c in value.chars() {
-        if !("01234567".contains(c)) {
-            return false;
-        }
-    }
-    return true;
+fn is_valid_bin(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(|c| c == '0' || c == '1')
 }
 
-fn is_valid_dec(value: String) -> bool {
-    for c in value.chars() {
-        if !("0123456789".contains(c)) {
-            return false;
-        }
-    }
-    return true;
+fn is_valid_oct(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(|c| ('0'..='7').contains(&c))
 }
 
-fn is_valid_hex(value: String) -> bool {
-    for c in value.to_lowercase().chars() {
-        if !("0123456789abcdefx".contains(c)) {
-            return false;
-        }
-    }
-    return true;
+fn is_valid_dec(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(|c| c.is_ascii_digit())
 }
 
-pub fn detect_base(value: String) -> Result<Base, BaseError> {
-    if is_valid_bin(value.clone()) {
-        return Ok(Base::Bin);
-    };
-    if is_valid_oct(value.clone()) {
-        return Ok(Base::Oct);
-    };
-    if is_valid_dec(value.clone()) {
+fn is_valid_hex(value: &str) -> bool {
+    !value.is_empty() && value.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Detect the base of a value using prefix-based detection.
+///
+/// Detection rules:
+/// 1. `0b` prefix → Binary
+/// 2. `0o` prefix → Octal
+/// 3. `0x` prefix → Hexadecimal
+/// 4. Contains a-f letters → Hexadecimal
+/// 5. Otherwise → Decimal (the most common case)
+pub fn detect_base(value: &str) -> Result<Base, BaseError> {
+    let lower = value.to_lowercase();
+
+    // Check for explicit prefixes first
+    if lower.starts_with("0b") {
+        let stripped = &lower[2..];
+        if is_valid_bin(stripped) {
+            return Ok(Base::Bin);
+        } else {
+            return Err(BaseError::ParseError {
+                message: "Invalid binary number after 0b prefix",
+            });
+        }
+    }
+
+    if lower.starts_with("0o") {
+        let stripped = &lower[2..];
+        if is_valid_oct(stripped) {
+            return Ok(Base::Oct);
+        } else {
+            return Err(BaseError::ParseError {
+                message: "Invalid octal number after 0o prefix",
+            });
+        }
+    }
+
+    if lower.starts_with("0x") {
+        let stripped = &lower[2..];
+        if is_valid_hex(stripped) {
+            return Ok(Base::Hex);
+        } else {
+            return Err(BaseError::ParseError {
+                message: "Invalid hexadecimal number after 0x prefix",
+            });
+        }
+    }
+
+    // No prefix - check content
+    if value.is_empty() {
+        return Err(BaseError::ParseError {
+            message: "Empty input",
+        });
+    }
+
+    // If it contains hex letters (a-f), it must be hex
+    if lower.chars().any(|c| ('a'..='f').contains(&c)) {
+        if is_valid_hex(&lower) {
+            return Ok(Base::Hex);
+        } else {
+            return Err(BaseError::ParseError {
+                message: "Invalid hexadecimal number",
+            });
+        }
+    }
+
+    // Default to decimal for pure numeric input
+    if is_valid_dec(value) {
         return Ok(Base::Dec);
-    };
-    if is_valid_hex(value) {
-        return Ok(Base::Hex);
-    };
+    }
 
     Err(BaseError::ParseError {
         message: "Unable to detect base",
@@ -435,75 +483,122 @@ mod tests {
     mod detect_base_tests {
         use super::*;
 
+        // === Prefix-based detection ===
+
         #[test]
-        fn detects_binary_only_zeros_and_ones() {
-            let result = detect_base("101010".to_string()).unwrap();
-            assert!(matches!(result, Base::Bin));
+        fn detects_binary_with_0b_prefix() {
+            let result = detect_base("0b1010").unwrap();
+            assert_eq!(result, Base::Bin);
         }
 
         #[test]
-        fn detects_octal_with_digits_2_to_7() {
-            let result = detect_base("234567".to_string()).unwrap();
-            assert!(matches!(result, Base::Oct));
+        fn detects_binary_with_0b_prefix_uppercase() {
+            let result = detect_base("0B1010").unwrap();
+            assert_eq!(result, Base::Bin);
         }
 
         #[test]
-        fn detects_decimal_with_digits_8_or_9() {
-            let result = detect_base("12389".to_string()).unwrap();
-            assert!(matches!(result, Base::Dec));
+        fn detects_octal_with_0o_prefix() {
+            let result = detect_base("0o777").unwrap();
+            assert_eq!(result, Base::Oct);
         }
 
         #[test]
-        fn detects_hex_with_letters() {
-            let result = detect_base("abc123".to_string()).unwrap();
-            assert!(matches!(result, Base::Hex));
+        fn detects_octal_with_0o_prefix_uppercase() {
+            let result = detect_base("0O755").unwrap();
+            assert_eq!(result, Base::Oct);
         }
 
         #[test]
         fn detects_hex_with_0x_prefix() {
-            let result = detect_base("0xff".to_string()).unwrap();
-            assert!(matches!(result, Base::Hex));
+            let result = detect_base("0xff").unwrap();
+            assert_eq!(result, Base::Hex);
         }
 
         #[test]
-        fn ambiguous_101_detected_as_binary() {
-            // This documents the current behavior - "101" is detected as binary
-            let result = detect_base("101".to_string()).unwrap();
-            assert!(matches!(result, Base::Bin));
+        fn detects_hex_with_0x_prefix_uppercase() {
+            let result = detect_base("0XFF").unwrap();
+            assert_eq!(result, Base::Hex);
+        }
+
+        // === Content-based detection ===
+
+        #[test]
+        fn detects_hex_with_letters_no_prefix() {
+            let result = detect_base("abc123").unwrap();
+            assert_eq!(result, Base::Hex);
         }
 
         #[test]
-        fn ambiguous_777_detected_as_octal() {
-            // "777" with only 0-7 digits is detected as octal (after failing binary)
-            let result = detect_base("777".to_string()).unwrap();
-            assert!(matches!(result, Base::Oct));
+        fn detects_hex_with_only_letters() {
+            let result = detect_base("deadbeef").unwrap();
+            assert_eq!(result, Base::Hex);
+        }
+
+        // === Decimal default (key behavior change) ===
+
+        #[test]
+        fn pure_digits_default_to_decimal() {
+            // Previously detected as binary, now decimal
+            let result = detect_base("101").unwrap();
+            assert_eq!(result, Base::Dec);
         }
 
         #[test]
-        fn ambiguous_999_detected_as_decimal() {
-            // "999" with 8/9 is detected as decimal
-            let result = detect_base("999".to_string()).unwrap();
-            assert!(matches!(result, Base::Dec));
+        fn octal_looking_numbers_default_to_decimal() {
+            // Previously detected as octal, now decimal
+            let result = detect_base("777").unwrap();
+            assert_eq!(result, Base::Dec);
         }
+
+        #[test]
+        fn regular_decimal_detected() {
+            let result = detect_base("12389").unwrap();
+            assert_eq!(result, Base::Dec);
+        }
+
+        #[test]
+        fn large_decimal_detected() {
+            let result = detect_base("999999999").unwrap();
+            assert_eq!(result, Base::Dec);
+        }
+
+        // === Error cases ===
 
         #[test]
         fn fails_on_invalid_characters() {
-            let result = detect_base("xyz".to_string());
+            let result = detect_base("xyz");
             assert!(result.is_err());
         }
 
         #[test]
         fn fails_on_special_characters() {
-            let result = detect_base("12+34".to_string());
+            let result = detect_base("12+34");
             assert!(result.is_err());
         }
 
         #[test]
-        fn empty_string_detected_as_binary() {
-            // Empty string passes all validations (vacuous truth)
-            // This documents current behavior
-            let result = detect_base("".to_string());
-            assert!(result.is_ok());
+        fn fails_on_empty_string() {
+            let result = detect_base("");
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn fails_on_invalid_binary_after_0b() {
+            let result = detect_base("0b123");
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn fails_on_invalid_octal_after_0o() {
+            let result = detect_base("0o789");
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn fails_on_invalid_hex_after_0x() {
+            let result = detect_base("0xghij");
+            assert!(result.is_err());
         }
     }
 
@@ -514,55 +609,134 @@ mod tests {
 
         #[test]
         fn is_valid_bin_accepts_valid() {
-            assert!(is_valid_bin("0".to_string()));
-            assert!(is_valid_bin("1".to_string()));
-            assert!(is_valid_bin("010101".to_string()));
+            assert!(is_valid_bin("0"));
+            assert!(is_valid_bin("1"));
+            assert!(is_valid_bin("010101"));
         }
 
         #[test]
         fn is_valid_bin_rejects_invalid() {
-            assert!(!is_valid_bin("2".to_string()));
-            assert!(!is_valid_bin("a".to_string()));
-            assert!(!is_valid_bin("01201".to_string()));
+            assert!(!is_valid_bin("2"));
+            assert!(!is_valid_bin("a"));
+            assert!(!is_valid_bin("01201"));
+        }
+
+        #[test]
+        fn is_valid_bin_rejects_empty() {
+            assert!(!is_valid_bin(""));
         }
 
         #[test]
         fn is_valid_oct_accepts_valid() {
-            assert!(is_valid_oct("01234567".to_string()));
-            assert!(is_valid_oct("777".to_string()));
+            assert!(is_valid_oct("01234567"));
+            assert!(is_valid_oct("777"));
         }
 
         #[test]
         fn is_valid_oct_rejects_invalid() {
-            assert!(!is_valid_oct("8".to_string()));
-            assert!(!is_valid_oct("9".to_string()));
-            assert!(!is_valid_oct("a".to_string()));
+            assert!(!is_valid_oct("8"));
+            assert!(!is_valid_oct("9"));
+            assert!(!is_valid_oct("a"));
+        }
+
+        #[test]
+        fn is_valid_oct_rejects_empty() {
+            assert!(!is_valid_oct(""));
         }
 
         #[test]
         fn is_valid_dec_accepts_valid() {
-            assert!(is_valid_dec("0123456789".to_string()));
-            assert!(is_valid_dec("999".to_string()));
+            assert!(is_valid_dec("0123456789"));
+            assert!(is_valid_dec("999"));
         }
 
         #[test]
         fn is_valid_dec_rejects_invalid() {
-            assert!(!is_valid_dec("a".to_string()));
-            assert!(!is_valid_dec("12a34".to_string()));
+            assert!(!is_valid_dec("a"));
+            assert!(!is_valid_dec("12a34"));
+        }
+
+        #[test]
+        fn is_valid_dec_rejects_empty() {
+            assert!(!is_valid_dec(""));
         }
 
         #[test]
         fn is_valid_hex_accepts_valid() {
-            assert!(is_valid_hex("0123456789abcdef".to_string()));
-            assert!(is_valid_hex("ABCDEF".to_string()));
-            assert!(is_valid_hex("0xff".to_string()));
-            assert!(is_valid_hex("0xFF".to_string()));
+            assert!(is_valid_hex("0123456789abcdef"));
+            assert!(is_valid_hex("ABCDEF"));
+            assert!(is_valid_hex("ff"));
         }
 
         #[test]
         fn is_valid_hex_rejects_invalid() {
-            assert!(!is_valid_hex("g".to_string()));
-            assert!(!is_valid_hex("xyz".to_string()));
+            assert!(!is_valid_hex("g"));
+            assert!(!is_valid_hex("xyz"));
+        }
+
+        #[test]
+        fn is_valid_hex_rejects_empty() {
+            assert!(!is_valid_hex(""));
+        }
+    }
+
+    // ==================== Prefix stripping tests ====================
+
+    mod prefix_tests {
+        use super::*;
+
+        #[test]
+        fn strips_0b_prefix_for_binary() {
+            assert_eq!(strip_prefix("0b1010", Base::Bin), "1010");
+            assert_eq!(strip_prefix("0B1010", Base::Bin), "1010");
+        }
+
+        #[test]
+        fn strips_0o_prefix_for_octal() {
+            assert_eq!(strip_prefix("0o777", Base::Oct), "777");
+            assert_eq!(strip_prefix("0O755", Base::Oct), "755");
+        }
+
+        #[test]
+        fn strips_0x_prefix_for_hex() {
+            assert_eq!(strip_prefix("0xff", Base::Hex), "ff");
+            assert_eq!(strip_prefix("0XFF", Base::Hex), "ff");
+        }
+
+        #[test]
+        fn no_strip_for_decimal() {
+            assert_eq!(strip_prefix("123", Base::Dec), "123");
+        }
+
+        #[test]
+        fn no_strip_when_no_prefix() {
+            assert_eq!(strip_prefix("1010", Base::Bin), "1010");
+            assert_eq!(strip_prefix("777", Base::Oct), "777");
+            assert_eq!(strip_prefix("ff", Base::Hex), "ff");
+        }
+    }
+
+    // ==================== Value::from with prefix tests ====================
+
+    mod from_with_prefix {
+        use super::*;
+
+        #[test]
+        fn parses_binary_with_0b_prefix() {
+            let val = Value::from("0b1010".to_string(), Base::Bin).unwrap();
+            assert_eq!(val.to_base(Base::Dec), "10");
+        }
+
+        #[test]
+        fn parses_octal_with_0o_prefix() {
+            let val = Value::from("0o777".to_string(), Base::Oct).unwrap();
+            assert_eq!(val.to_base(Base::Dec), "511");
+        }
+
+        #[test]
+        fn parses_hex_with_0x_prefix() {
+            let val = Value::from("0xff".to_string(), Base::Hex).unwrap();
+            assert_eq!(val.to_base(Base::Dec), "255");
         }
     }
 }

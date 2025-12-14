@@ -14,7 +14,11 @@ fn run_changebase(args: &[&str]) -> (String, String, bool) {
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     let success = output.status.success();
 
-    (stdout.trim().to_string(), stderr.trim().to_string(), success)
+    (
+        stdout.trim().to_string(),
+        stderr.trim().to_string(),
+        success,
+    )
 }
 
 // ==================== Basic conversion tests ====================
@@ -124,36 +128,84 @@ mod hex_prefix {
 mod auto_detection {
     use super::*;
 
+    // === Prefix-based detection ===
+
     #[test]
-    fn detects_hex_with_letters() {
-        let (stdout, _, success) = run_changebase(&["--od", "abc"]);
+    fn detects_binary_with_0b_prefix() {
+        let (stdout, _, success) = run_changebase(&["--od", "0b1010"]);
         assert!(success);
-        assert_eq!(stdout.lines().last().unwrap(), "2748");
+        assert!(stdout.contains("Detected base Binary"));
+        assert_eq!(stdout.lines().last().unwrap(), "10");
+    }
+
+    #[test]
+    fn detects_octal_with_0o_prefix() {
+        let (stdout, _, success) = run_changebase(&["--od", "0o777"]);
+        assert!(success);
+        assert!(stdout.contains("Detected base Octal"));
+        assert_eq!(stdout.lines().last().unwrap(), "511");
     }
 
     #[test]
     fn detects_hex_with_0x_prefix() {
         let (stdout, _, success) = run_changebase(&["--od", "0xff"]);
         assert!(success);
+        assert!(stdout.contains("Detected base Hexadecimal"));
         assert_eq!(stdout.lines().last().unwrap(), "255");
     }
 
+    // === Content-based detection ===
+
     #[test]
-    fn ambiguous_binary_detected_as_binary() {
-        // "101" is valid for all bases but detected as binary
-        let (stdout, _, success) = run_changebase(&["--od", "101"]);
+    fn detects_hex_with_letters() {
+        let (stdout, _, success) = run_changebase(&["--od", "abc"]);
         assert!(success);
-        // Binary 101 = decimal 5
-        assert_eq!(stdout.lines().last().unwrap(), "5");
+        assert!(stdout.contains("Detected base Hexadecimal"));
+        assert_eq!(stdout.lines().last().unwrap(), "2748");
     }
 
     #[test]
-    fn ambiguous_octal_detected_as_octal() {
-        // "777" is valid for oct/dec/hex but detected as octal (after binary check fails)
-        let (stdout, _, success) = run_changebase(&["--od", "777"]);
+    fn detects_hex_deadbeef() {
+        let (stdout, _, success) = run_changebase(&["--od", "deadbeef"]);
         assert!(success);
-        // Octal 777 = decimal 511
-        assert_eq!(stdout.lines().last().unwrap(), "511");
+        assert!(stdout.contains("Detected base Hexadecimal"));
+        assert_eq!(stdout.lines().last().unwrap(), "3735928559");
+    }
+
+    // === Decimal default (key behavior change) ===
+
+    #[test]
+    fn pure_digits_default_to_decimal() {
+        // "101" now defaults to decimal, not binary
+        let (stdout, _, success) = run_changebase(&["--oh", "101"]);
+        assert!(success);
+        assert!(stdout.contains("Detected base Decimal"));
+        assert_eq!(stdout.lines().last().unwrap(), "65"); // decimal 101 = hex 65
+    }
+
+    #[test]
+    fn octal_looking_defaults_to_decimal() {
+        // "777" now defaults to decimal, not octal
+        let (stdout, _, success) = run_changebase(&["--oh", "777"]);
+        assert!(success);
+        assert!(stdout.contains("Detected base Decimal"));
+        assert_eq!(stdout.lines().last().unwrap(), "309"); // decimal 777 = hex 309
+    }
+
+    // === To get binary/octal without prefix, use explicit flags ===
+
+    #[test]
+    fn use_ib_flag_for_binary_without_prefix() {
+        let (stdout, _, success) = run_changebase(&["--ib", "--od", "101"]);
+        assert!(success);
+        assert_eq!(stdout, "5"); // binary 101 = decimal 5
+    }
+
+    #[test]
+    fn use_io_flag_for_octal_without_prefix() {
+        let (stdout, _, success) = run_changebase(&["--io", "--od", "777"]);
+        assert!(success);
+        assert_eq!(stdout, "511"); // octal 777 = decimal 511
     }
 }
 
@@ -220,7 +272,6 @@ mod error_handling {
         assert!(!success);
         assert!(stderr.contains("Error") || stderr.contains("error"));
     }
-
 }
 
 // ==================== Verbose mode tests ====================
@@ -322,8 +373,8 @@ mod show_all_bases {
     }
 
     #[test]
-    fn auto_detect_shows_all_bases() {
-        // Using hex value that will be auto-detected
+    fn auto_detect_hex_shows_all_bases() {
+        // Using hex value that will be auto-detected (has letters)
         let (stdout, _, success) = run_changebase(&["abc"]);
         assert!(success);
         assert!(stdout.contains("bin:"));
@@ -332,6 +383,25 @@ mod show_all_bases {
         assert!(stdout.contains("hex:"));
         // Hex should be marked as detected input
         assert!(stdout.contains("hex: abc *"));
+    }
+
+    #[test]
+    fn auto_detect_decimal_shows_all_bases() {
+        // Pure digits now default to decimal
+        let (stdout, _, success) = run_changebase(&["255"]);
+        assert!(success);
+        assert!(stdout.contains("bin: 11111111"));
+        assert!(stdout.contains("dec: 255 *")); // Decimal is now marked
+        assert!(stdout.contains("hex: ff"));
+    }
+
+    #[test]
+    fn prefix_detection_shows_all_bases() {
+        // Using 0b prefix for binary
+        let (stdout, _, success) = run_changebase(&["0b1010"]);
+        assert!(success);
+        assert!(stdout.contains("bin: 1010 *"));
+        assert!(stdout.contains("dec: 10"));
     }
 
     #[test]

@@ -1,7 +1,7 @@
 use clap::Parser;
 
 mod opts;
-use opts::{Opt, Base, ALL_BASES};
+use opts::{Base, Opt, ALL_BASES};
 mod base;
 use base::Value;
 mod errors;
@@ -17,9 +17,6 @@ fn main() {
             match e {
                 BaseError::ParseError { message } => {
                     eprintln!("Error parsing value: {}", message)
-                }
-                BaseError::ArgError { message } => {
-                    eprintln!("Invalid arguments: {}", message)
                 }
             }
             std::process::exit(1);

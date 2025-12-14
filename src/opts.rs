@@ -1,6 +1,6 @@
 use crate::base::detect_base;
 use crate::errors::BaseError;
-use clap::{Parser, Args, ValueEnum};
+use clap::{Args, Parser, ValueEnum};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum Base {
@@ -103,11 +103,7 @@ impl Opt {
         } else if self.short_base_opts.hex_input {
             Ok(Base::Hex)
         } else {
-            detect_base(self.value.clone())
-                .map_err(|_| BaseError::ArgError {
-                    message: "No input base specified",
-                })
-                .inspect(|b| println!("Detected base {}", b.repr()))
+            detect_base(&self.value).inspect(|b| println!("Detected base {}", b.repr()))
         }
     }
 
@@ -168,7 +164,9 @@ mod tests {
 
     // Simplified helper for common cases
     fn make_simple_opt(input: Option<Base>, output: Option<Base>, value: &str) -> Opt {
-        make_opt(input, output, value, false, false, false, false, false, false, false, false, false)
+        make_opt(
+            input, output, value, false, false, false, false, false, false, false, false, false,
+        )
     }
 
     // ==================== Base::repr tests ====================
@@ -212,10 +210,18 @@ mod tests {
         fn explicit_input_takes_precedence_over_shorthand() {
             // Even with --ib set, --input dec should win
             let opt = make_opt(
-                Some(Base::Dec), None, "255",
-                true, false, false, false,  // ib=true
-                false, false, false, false,
-                false
+                Some(Base::Dec),
+                None,
+                "255",
+                true,
+                false,
+                false,
+                false, // ib=true
+                false,
+                false,
+                false,
+                false,
+                false,
             );
             assert!(matches!(opt.get_input().unwrap(), Base::Dec));
         }
@@ -223,10 +229,7 @@ mod tests {
         #[test]
         fn shorthand_ib_returns_binary() {
             let opt = make_opt(
-                None, None, "1010",
-                true, false, false, false,
-                false, false, false, false,
-                false
+                None, None, "1010", true, false, false, false, false, false, false, false, false,
             );
             assert!(matches!(opt.get_input().unwrap(), Base::Bin));
         }
@@ -234,10 +237,7 @@ mod tests {
         #[test]
         fn shorthand_io_returns_octal() {
             let opt = make_opt(
-                None, None, "777",
-                false, true, false, false,
-                false, false, false, false,
-                false
+                None, None, "777", false, true, false, false, false, false, false, false, false,
             );
             assert!(matches!(opt.get_input().unwrap(), Base::Oct));
         }
@@ -245,10 +245,7 @@ mod tests {
         #[test]
         fn shorthand_id_returns_decimal() {
             let opt = make_opt(
-                None, None, "255",
-                false, false, true, false,
-                false, false, false, false,
-                false
+                None, None, "255", false, false, true, false, false, false, false, false, false,
             );
             assert!(matches!(opt.get_input().unwrap(), Base::Dec));
         }
@@ -256,18 +253,23 @@ mod tests {
         #[test]
         fn shorthand_ih_returns_hex() {
             let opt = make_opt(
-                None, None, "ff",
-                false, false, false, true,
-                false, false, false, false,
-                false
+                None, None, "ff", false, false, false, true, false, false, false, false, false,
             );
             assert!(matches!(opt.get_input().unwrap(), Base::Hex));
         }
 
         #[test]
-        fn auto_detects_binary() {
-            let opt = make_simple_opt(None, Some(Base::Dec), "1010");
+        fn auto_detects_binary_with_prefix() {
+            // Binary now requires 0b prefix for auto-detection
+            let opt = make_simple_opt(None, Some(Base::Dec), "0b1010");
             assert!(matches!(opt.get_input().unwrap(), Base::Bin));
+        }
+
+        #[test]
+        fn pure_digits_default_to_decimal() {
+            // "1010" without prefix now defaults to decimal
+            let opt = make_simple_opt(None, Some(Base::Dec), "1010");
+            assert!(matches!(opt.get_input().unwrap(), Base::Dec));
         }
 
         #[test]
@@ -286,10 +288,8 @@ mod tests {
         fn shorthand_precedence_ib_over_io() {
             // First true shorthand wins (binary before octal)
             let opt = make_opt(
-                None, None, "777",
-                true, true, false, false,  // both ib and io
-                false, false, false, false,
-                false
+                None, None, "777", true, true, false, false, // both ib and io
+                false, false, false, false, false,
             );
             assert!(matches!(opt.get_input().unwrap(), Base::Bin));
         }
@@ -309,10 +309,18 @@ mod tests {
         #[test]
         fn explicit_output_takes_precedence_over_shorthand() {
             let opt = make_opt(
-                None, Some(Base::Hex), "255",
-                false, false, false, false,
-                true, false, false, false,  // ob=true
-                false
+                None,
+                Some(Base::Hex),
+                "255",
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false, // ob=true
+                false,
             );
             assert_eq!(opt.get_output(), Some(Base::Hex));
         }
@@ -320,10 +328,7 @@ mod tests {
         #[test]
         fn shorthand_ob_returns_binary() {
             let opt = make_opt(
-                None, None, "255",
-                false, false, false, false,
-                true, false, false, false,
-                false
+                None, None, "255", false, false, false, false, true, false, false, false, false,
             );
             assert_eq!(opt.get_output(), Some(Base::Bin));
         }
@@ -331,10 +336,7 @@ mod tests {
         #[test]
         fn shorthand_oo_returns_octal() {
             let opt = make_opt(
-                None, None, "255",
-                false, false, false, false,
-                false, true, false, false,
-                false
+                None, None, "255", false, false, false, false, false, true, false, false, false,
             );
             assert_eq!(opt.get_output(), Some(Base::Oct));
         }
@@ -342,10 +344,7 @@ mod tests {
         #[test]
         fn shorthand_od_returns_decimal() {
             let opt = make_opt(
-                None, None, "ff",
-                false, false, false, false,
-                false, false, true, false,
-                false
+                None, None, "ff", false, false, false, false, false, false, true, false, false,
             );
             assert_eq!(opt.get_output(), Some(Base::Dec));
         }
@@ -353,10 +352,7 @@ mod tests {
         #[test]
         fn shorthand_oh_returns_hex() {
             let opt = make_opt(
-                None, None, "255",
-                false, false, false, false,
-                false, false, false, true,
-                false
+                None, None, "255", false, false, false, false, false, false, false, true, false,
             );
             assert_eq!(opt.get_output(), Some(Base::Hex));
         }
@@ -370,10 +366,9 @@ mod tests {
         #[test]
         fn shorthand_precedence_ob_over_oo() {
             let opt = make_opt(
-                None, None, "255",
-                false, false, false, false,
-                true, true, false, false,  // both ob and oo
-                false
+                None, None, "255", false, false, false, false, true, true, false,
+                false, // both ob and oo
+                false,
             );
             assert_eq!(opt.get_output(), Some(Base::Bin));
         }
@@ -386,7 +381,9 @@ mod tests {
 
         #[test]
         fn parses_long_input_flag() {
-            let opt = Opt::try_parse_from(["changebase", "--input", "dec", "--output", "hex", "255"]).unwrap();
+            let opt =
+                Opt::try_parse_from(["changebase", "--input", "dec", "--output", "hex", "255"])
+                    .unwrap();
             assert!(matches!(opt.input, Some(Base::Dec)));
         }
 
