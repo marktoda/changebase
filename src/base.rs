@@ -1,14 +1,43 @@
+//! Core base conversion logic.
+//!
+//! This module provides the [`Value`] type for representing numbers and converting
+//! between different bases (binary, octal, decimal, hexadecimal), as well as
+//! auto-detection of input bases.
+
 use crate::errors::BaseError;
 use crate::opts::Base;
 use num::{bigint::BigUint, Num};
 
+/// A numeric value that can be converted between different bases.
+///
+/// `Value` wraps a `BigUint` to support arbitrary-precision arithmetic,
+/// allowing conversion of numbers larger than 64-bit.
+///
+/// # Examples
+///
+/// ```ignore
+/// let val = Value::from("ff".to_string(), Base::Hex)?;
+/// assert_eq!(val.to_base(Base::Dec), "255");
+/// ```
 pub struct Value {
     value: BigUint,
 }
 
 impl Value {
+    /// Creates a new `Value` by parsing a string in the specified base.
+    ///
+    /// Automatically strips standard prefixes (`0b`, `0o`, `0x`) before parsing.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The string representation of the number
+    /// * `base` - The base to interpret the number in
+    ///
+    /// # Errors
+    ///
+    /// Returns `BaseError::ParseError` if the value contains invalid digits
+    /// for the specified base.
     pub fn from(value: String, base: Base) -> Result<Value, BaseError> {
-        // Strip prefix if present
         let stripped = strip_prefix(&value, base);
         Value::validate(base, stripped.clone())?;
 
@@ -22,6 +51,10 @@ impl Value {
         .map(|value| Value { value })
     }
 
+    /// Converts the value to a string representation in the specified base.
+    ///
+    /// The output does not include any prefix (e.g., no `0x` for hex).
+    /// Leading zeros are stripped from the output.
     pub fn to_base(&self, base: Base) -> String {
         match base {
             Base::Bin => self.value.to_str_radix(2),
@@ -46,7 +79,7 @@ impl Value {
     }
 
     fn get_parse_error(base: Base) -> BaseError {
-        return match base {
+        match base {
             Base::Bin => BaseError::ParseError {
                 message: "Binary: only include the digits 0 or 1.",
             },
@@ -57,13 +90,16 @@ impl Value {
                 message: "Decimal: only enter the digits 0-9",
             },
             Base::Hex => BaseError::ParseError {
-                message: "Hexaxecimal: only enter the digita 0-9 and a-f",
+                message: "Hexadecimal: only enter the digits 0-9 and a-f",
             },
-        };
+        }
     }
 }
 
-/// Strip the prefix from a value for the given base
+/// Strips the standard prefix from a value for the given base.
+///
+/// Handles `0b` for binary, `0o` for octal, and `0x` for hex.
+/// Case-insensitive. Returns the value unchanged if no matching prefix.
 fn strip_prefix(value: &str, base: Base) -> String {
     let lower = value.to_lowercase();
     match base {
@@ -74,18 +110,22 @@ fn strip_prefix(value: &str, base: Base) -> String {
     }
 }
 
+/// Returns true if the value contains only valid binary digits (0-1).
 fn is_valid_bin(value: &str) -> bool {
     !value.is_empty() && value.chars().all(|c| c == '0' || c == '1')
 }
 
+/// Returns true if the value contains only valid octal digits (0-7).
 fn is_valid_oct(value: &str) -> bool {
     !value.is_empty() && value.chars().all(|c| ('0'..='7').contains(&c))
 }
 
+/// Returns true if the value contains only valid decimal digits (0-9).
 fn is_valid_dec(value: &str) -> bool {
     !value.is_empty() && value.chars().all(|c| c.is_ascii_digit())
 }
 
+/// Returns true if the value contains only valid hexadecimal digits (0-9, a-f).
 fn is_valid_hex(value: &str) -> bool {
     !value.is_empty() && value.chars().all(|c| c.is_ascii_hexdigit())
 }
@@ -102,8 +142,7 @@ pub fn detect_base(value: &str) -> Result<Base, BaseError> {
     let lower = value.to_lowercase();
 
     // Check for explicit prefixes first
-    if lower.starts_with("0b") {
-        let stripped = &lower[2..];
+    if let Some(stripped) = lower.strip_prefix("0b") {
         if is_valid_bin(stripped) {
             return Ok(Base::Bin);
         } else {
@@ -113,8 +152,7 @@ pub fn detect_base(value: &str) -> Result<Base, BaseError> {
         }
     }
 
-    if lower.starts_with("0o") {
-        let stripped = &lower[2..];
+    if let Some(stripped) = lower.strip_prefix("0o") {
         if is_valid_oct(stripped) {
             return Ok(Base::Oct);
         } else {
@@ -124,8 +162,7 @@ pub fn detect_base(value: &str) -> Result<Base, BaseError> {
         }
     }
 
-    if lower.starts_with("0x") {
-        let stripped = &lower[2..];
+    if let Some(stripped) = lower.strip_prefix("0x") {
         if is_valid_hex(stripped) {
             return Ok(Base::Hex);
         } else {

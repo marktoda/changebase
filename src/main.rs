@@ -1,11 +1,17 @@
+//! changebase - A fast CLI tool for converting numbers between bases.
+//!
+//! Supports binary, octal, decimal, and hexadecimal with smart auto-detection
+//! and arbitrary-precision arithmetic.
+
 use clap::Parser;
 
-mod opts;
-use opts::{Base, Opt, ALL_BASES};
 mod base;
-use base::Value;
 mod errors;
+mod opts;
+
+use base::Value;
 use errors::BaseError;
+use opts::{Base, Opt, ALL_BASES};
 
 fn main() {
     let opt = Opt::parse();
@@ -24,6 +30,9 @@ fn main() {
     }
 }
 
+/// Performs the base conversion based on CLI options.
+///
+/// Returns the formatted output string, or an error if parsing fails.
 fn convert_base(opt: &Opt) -> Result<String, BaseError> {
     let input = opt.get_input()?;
     let output = opt.get_output();
@@ -32,7 +41,6 @@ fn convert_base(opt: &Opt) -> Result<String, BaseError> {
 
     match output {
         Some(base) => {
-            // Single output base
             if opt.verbose {
                 println!(
                     "Converting {} from {} to {}",
@@ -44,7 +52,6 @@ fn convert_base(opt: &Opt) -> Result<String, BaseError> {
             Ok(format!("{}\n", num.to_base(base)))
         }
         None => {
-            // Show all bases
             if opt.verbose {
                 println!("Converting {} from {}", &opt.value, input.repr());
             }
@@ -53,6 +60,9 @@ fn convert_base(opt: &Opt) -> Result<String, BaseError> {
     }
 }
 
+/// Formats a number in all supported bases.
+///
+/// The input base is marked with an asterisk (*) for easy identification.
 fn format_all_bases(num: &Value, input_base: Base) -> String {
     let mut output = String::new();
     for base in ALL_BASES {

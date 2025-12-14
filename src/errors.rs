@@ -1,9 +1,19 @@
+//! Error types for changebase.
+//!
+//! This module defines all error types that can occur during base conversion.
+
 use thiserror::Error;
 
-/// BaseError enumerates all possible errors returned by this library.
+/// Errors that can occur during base conversion operations.
 #[derive(Error, Debug)]
 pub enum BaseError {
-    /// Represents a failure to parse the input value
+    /// The input value could not be parsed in the specified (or detected) base.
+    ///
+    /// The `message` field contains a human-readable description of what
+    /// digits are valid for the expected base.
     #[error("Unable to parse input value")]
-    ParseError { message: &'static str },
+    ParseError {
+        /// Description of the parse error
+        message: &'static str,
+    },
 }

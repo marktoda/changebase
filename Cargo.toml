@@ -1,11 +1,14 @@
 [package]
 name = "changebase"
+version = "0.2.0"
+edition = "2021"
 authors = ["Mark Toda"]
 license = "GPL-3.0"
-version = "0.1.0"
-edition = "2018"
-description = "Light CLI tool to convert numbers from one base to another."
+description = "A fast CLI tool for converting numbers between bases (binary, octal, decimal, hex)"
 repository = "https://github.com/marktoda/changebase"
+keywords = ["cli", "converter", "hex", "binary", "base"]
+categories = ["command-line-utilities", "development-tools"]
+readme = "README.md"
 
 [[bin]]
 name = "changebase"
@@ -13,5 +16,5 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-num = "0.4.0"
-thiserror = "1.0.30"
+num = "0.4"
+thiserror = "1.0"

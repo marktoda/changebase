@@ -1,19 +1,30 @@
+//! Command-line argument parsing and base definitions.
+//!
+//! This module defines the CLI interface using clap, including all flags and
+//! options for specifying input/output bases.
+
 use crate::base::detect_base;
 use crate::errors::BaseError;
 use clap::{Args, Parser, ValueEnum};
 
+/// Supported numeric bases for conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum Base {
+    /// Binary (base 2)
     Bin,
+    /// Octal (base 8)
     Oct,
+    /// Decimal (base 10)
     Dec,
+    /// Hexadecimal (base 16)
     Hex,
 }
 
-/// All supported bases in display order
+/// All supported bases in display order (binary, octal, decimal, hex).
 pub const ALL_BASES: [Base; 4] = [Base::Bin, Base::Oct, Base::Dec, Base::Hex];
 
 impl Base {
+    /// Returns the full name of the base (e.g., "Hexadecimal").
     pub fn repr(&self) -> String {
         match *self {
             Base::Bin => "Binary".to_string(),
@@ -23,7 +34,7 @@ impl Base {
         }
     }
 
-    /// Short label for display (e.g., "bin", "hex")
+    /// Returns the short label for display (e.g., "hex").
     pub fn short_label(&self) -> &'static str {
         match *self {
             Base::Bin => "bin",
@@ -34,23 +45,30 @@ impl Base {
     }
 }
 
+/// Command-line options for changebase.
+///
+/// Supports multiple ways to specify input/output bases:
+/// - Long flags: `--input dec --output hex`
+/// - Short flags: `-i dec -o hex`
+/// - Shorthand flags: `--id --oh`
 #[derive(Clone, Debug, Parser)]
-#[command(name = "changebase", about = "numeric base converter")]
+#[command(name = "changebase", about = "A fast CLI tool for converting numbers between bases")]
 pub struct Opt {
-    /// Input base to use. If not given, attempts to detect
+    /// Input base to use. If not given, attempts to auto-detect.
     #[arg(long = "input", short = 'i', value_enum, ignore_case = true)]
     pub input: Option<Base>,
 
-    /// Output base to use. If not given, shows all bases
+    /// Output base to use. If not given, shows all bases.
     #[arg(long = "output", short = 'o', value_enum, ignore_case = true)]
     pub output: Option<Base>,
 
+    /// The value to convert
     pub value: String,
 
     #[command(flatten)]
     short_base_opts: ShortBaseOpts,
 
-    /// add verbosity
+    /// Enable verbose output showing conversion details
     #[arg(short)]
     pub verbose: bool,
 }
@@ -91,6 +109,14 @@ struct ShortBaseOpts {
 }
 
 impl Opt {
+    /// Determines the input base from CLI arguments or auto-detection.
+    ///
+    /// Priority order:
+    /// 1. Explicit `--input` / `-i` flag
+    /// 2. Shorthand flags (`--ib`, `--io`, `--id`, `--ih`)
+    /// 3. Auto-detection from value content/prefix
+    ///
+    /// When auto-detecting, prints the detected base to stdout.
     pub fn get_input(&self) -> Result<Base, BaseError> {
         if let Some(base) = self.input {
             Ok(base)
@@ -107,7 +133,15 @@ impl Opt {
         }
     }
 
-    /// Returns the output base if specified, or None to indicate all bases should be shown
+    /// Determines the output base from CLI arguments.
+    ///
+    /// Returns `None` if no output base specified, indicating all bases
+    /// should be displayed.
+    ///
+    /// Priority order:
+    /// 1. Explicit `--output` / `-o` flag
+    /// 2. Shorthand flags (`--ob`, `--oo`, `--od`, `--oh`)
+    /// 3. `None` (show all bases)
     pub fn get_output(&self) -> Option<Base> {
         if let Some(base) = self.output {
             Some(base)
