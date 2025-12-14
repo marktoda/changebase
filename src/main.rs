@@ -11,16 +11,18 @@ fn main() {
     let opt = Opt::parse();
 
     let result = convert_base(opt);
-    if let Ok(val) = result {
-        println!("{}", val);
-    } else if let Err(e) = result {
-        match e {
-            BaseError::ParseError { message } => {
-                eprintln!("Error parsing value: {}", message)
+    match result {
+        Ok(val) => println!("{}", val),
+        Err(e) => {
+            match e {
+                BaseError::ParseError { message } => {
+                    eprintln!("Error parsing value: {}", message)
+                }
+                BaseError::ArgError { message } => {
+                    eprintln!("Invalid arguments: {}", message)
+                }
             }
-            BaseError::ArgError { message } => {
-                eprintln!("Invalid arguments: {}", message)
-            }
+            std::process::exit(1);
         }
     }
 }
