@@ -1,4 +1,4 @@
-use structopt::StructOpt;
+use clap::Parser;
 
 mod opts;
 use opts::Opt;
@@ -8,7 +8,7 @@ mod errors;
 use errors::BaseError;
 
 fn main() {
-    let opt = Opt::from_args();
+    let opt = Opt::parse();
 
     let result = convert_base(opt);
     if let Ok(val) = result {

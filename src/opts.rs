@@ -1,16 +1,13 @@
 use crate::base::detect_base;
 use crate::errors::BaseError;
-use clap::arg_enum;
-use structopt::StructOpt;
+use clap::{Parser, Args, ValueEnum};
 
-arg_enum! {
-    #[derive(Debug, Clone)]
-    pub enum Base {
-        Bin,
-        Oct,
-        Dec,
-        Hex,
-    }
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum Base {
+    Bin,
+    Oct,
+    Dec,
+    Hex,
 }
 
 impl Base {
@@ -24,76 +21,66 @@ impl Base {
     }
 }
 
-#[derive(Clone, Debug, StructOpt)]
-#[structopt(name = "base", about = "numeric base converter")]
+#[derive(Clone, Debug, Parser)]
+#[command(name = "changebase", about = "numeric base converter")]
 pub struct Opt {
     /// Input base to use. If not given, attempts to detect
-    #[structopt(
-        long = "input",
-        short = "in",
-        possible_values = &Base::variants(),
-        case_insensitive = true,
-    )]
+    #[arg(long = "input", short = 'i', value_enum, ignore_case = true)]
     pub input: Option<Base>,
 
     /// Output base to use
-    #[structopt(
-        long = "output",
-        short = "out",
-        possible_values = &Base::variants(),
-        case_insensitive = true,
-    )]
+    #[arg(long = "output", short = 'o', value_enum, ignore_case = true)]
     pub output: Option<Base>,
 
     pub value: String,
 
-    #[structopt(flatten)]
+    #[command(flatten)]
     short_base_opts: ShortBaseOpts,
 
     /// add verbosity
-    #[structopt(short)]
+    #[arg(short)]
     pub verbose: bool,
 }
 
-#[derive(Clone, Debug, StructOpt)]
+#[derive(Clone, Debug, Args)]
 struct ShortBaseOpts {
     /// use binary as input base
-    #[structopt(long = "ib")]
+    #[arg(long = "ib")]
     pub binary_input: bool,
 
     /// use octal as input base
-    #[structopt(long = "io")]
+    #[arg(long = "io")]
     pub octal_input: bool,
 
     /// use decimal as input base
-    #[structopt(long = "id")]
+    #[arg(long = "id")]
     pub decimal_input: bool,
 
     /// use hex as input base
-    #[structopt(long = "ih")]
+    #[arg(long = "ih")]
     pub hex_input: bool,
 
     /// use binary as output base
-    #[structopt(long = "ob")]
+    #[arg(long = "ob")]
     pub binary_output: bool,
 
     /// use octal as output base
-    #[structopt(long = "oo")]
+    #[arg(long = "oo")]
     pub octal_output: bool,
 
     /// use decimal as output base
-    #[structopt(long = "od")]
+    #[arg(long = "od")]
     pub decimal_output: bool,
 
     /// use hex as output base
-    #[structopt(long = "oh")]
+    #[arg(long = "oh")]
     pub hex_output: bool,
 }
 
 impl Opt {
     pub fn get_input(&self) -> Result<Base, BaseError> {
-        if self.input.is_some() {
-            Ok(self.input.clone().unwrap())
+        if let Some(base) = self.input {
+            Ok(base)
         } else if self.short_base_opts.binary_input {
             Ok(Base::Bin)
         } else if self.short_base_opts.octal_input {
@@ -112,8 +99,8 @@ impl Opt {
     }
 
     pub fn get_output(&self) -> Result<Base, BaseError> {
-        if self.output.is_some() {
-            Ok(self.output.clone().unwrap())
+        if let Some(base) = self.output {
+            Ok(base)
         } else if self.short_base_opts.binary_output {
             Ok(Base::Bin)
         } else if self.short_base_opts.octal_output {

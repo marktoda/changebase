@@ -12,8 +12,6 @@ name = "changebase"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0.44"
-clap = "2.33.3"
+clap = { version = "4", features = ["derive"] }
 num = "0.4.0"
-structopt = "0.3.22"
 thiserror = "1.0.30"
