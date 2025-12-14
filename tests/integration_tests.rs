@@ -221,12 +221,6 @@ mod error_handling {
         assert!(stderr.contains("Error") || stderr.contains("error"));
     }
 
-    #[test]
-    fn error_when_no_output_base() {
-        let (_, stderr, success) = run_changebase(&["--id", "255"]);
-        assert!(!success);
-        assert!(stderr.contains("output") || stderr.contains("Invalid"));
-    }
 }
 
 // ==================== Verbose mode tests ====================
@@ -277,6 +271,97 @@ mod edge_cases {
         let (stdout, _, success) = run_changebase(&["--id", "--od", "12345"]);
         assert!(success);
         assert_eq!(stdout, "12345");
+    }
+}
+
+// ==================== Show all bases (default behavior) ====================
+
+mod show_all_bases {
+    use super::*;
+
+    #[test]
+    fn shows_all_bases_when_no_output_specified() {
+        let (stdout, _, success) = run_changebase(&["--id", "255"]);
+        assert!(success);
+        assert!(stdout.contains("bin:"));
+        assert!(stdout.contains("oct:"));
+        assert!(stdout.contains("dec:"));
+        assert!(stdout.contains("hex:"));
+    }
+
+    #[test]
+    fn shows_correct_values_for_decimal_255() {
+        let (stdout, _, success) = run_changebase(&["--id", "255"]);
+        assert!(success);
+        assert!(stdout.contains("bin: 11111111"));
+        assert!(stdout.contains("oct: 377"));
+        assert!(stdout.contains("dec: 255"));
+        assert!(stdout.contains("hex: ff"));
+    }
+
+    #[test]
+    fn marks_input_base_with_asterisk() {
+        let (stdout, _, success) = run_changebase(&["--id", "255"]);
+        assert!(success);
+        // Decimal input should be marked
+        assert!(stdout.contains("dec: 255 *"));
+    }
+
+    #[test]
+    fn marks_hex_input_with_asterisk() {
+        let (stdout, _, success) = run_changebase(&["--ih", "ff"]);
+        assert!(success);
+        assert!(stdout.contains("hex: ff *"));
+    }
+
+    #[test]
+    fn marks_binary_input_with_asterisk() {
+        let (stdout, _, success) = run_changebase(&["--ib", "1010"]);
+        assert!(success);
+        assert!(stdout.contains("bin: 1010 *"));
+    }
+
+    #[test]
+    fn auto_detect_shows_all_bases() {
+        // Using hex value that will be auto-detected
+        let (stdout, _, success) = run_changebase(&["abc"]);
+        assert!(success);
+        assert!(stdout.contains("bin:"));
+        assert!(stdout.contains("oct:"));
+        assert!(stdout.contains("dec:"));
+        assert!(stdout.contains("hex:"));
+        // Hex should be marked as detected input
+        assert!(stdout.contains("hex: abc *"));
+    }
+
+    #[test]
+    fn verbose_mode_with_all_bases() {
+        let (stdout, _, success) = run_changebase(&["-v", "--id", "42"]);
+        assert!(success);
+        assert!(stdout.contains("Converting"));
+        assert!(stdout.contains("Decimal"));
+        assert!(stdout.contains("bin:"));
+        assert!(stdout.contains("hex:"));
+    }
+
+    #[test]
+    fn large_number_shows_all_bases() {
+        let (stdout, _, success) = run_changebase(&["--id", "1000000"]);
+        assert!(success);
+        assert!(stdout.contains("bin: 11110100001001000000"));
+        assert!(stdout.contains("oct: 3641100"));
+        assert!(stdout.contains("dec: 1000000"));
+        assert!(stdout.contains("hex: f4240"));
+    }
+
+    #[test]
+    fn zero_shows_all_bases() {
+        let (stdout, _, success) = run_changebase(&["--id", "0"]);
+        assert!(success);
+        assert!(stdout.contains("bin: 0"));
+        assert!(stdout.contains("oct: 0"));
+        assert!(stdout.contains("dec: 0"));
+        assert!(stdout.contains("hex: 0"));
     }
 }
 

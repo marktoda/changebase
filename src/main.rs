@@ -1,7 +1,7 @@
 use clap::Parser;
 
 mod opts;
-use opts::Opt;
+use opts::{Opt, Base, ALL_BASES};
 mod base;
 use base::Value;
 mod errors;
@@ -10,9 +10,9 @@ use errors::BaseError;
 fn main() {
     let opt = Opt::parse();
 
-    let result = convert_base(opt);
+    let result = convert_base(&opt);
     match result {
-        Ok(val) => println!("{}", val),
+        Ok(output) => print!("{}", output),
         Err(e) => {
             match e {
                 BaseError::ParseError { message } => {
@@ -27,18 +27,45 @@ fn main() {
     }
 }
 
-fn convert_base(opt: Opt) -> Result<String, BaseError> {
+fn convert_base(opt: &Opt) -> Result<String, BaseError> {
     let input = opt.get_input()?;
-    let output = opt.get_output()?;
-    if opt.verbose {
-        println!(
-            "Converting {} from {} to {}",
-            &opt.value,
-            input.repr(),
-            output.repr()
-        );
-    }
+    let output = opt.get_output();
 
-    let num = Value::from(opt.value, input)?;
-    Ok(num.to_base(output))
+    let num = Value::from(opt.value.clone(), input)?;
+
+    match output {
+        Some(base) => {
+            // Single output base
+            if opt.verbose {
+                println!(
+                    "Converting {} from {} to {}",
+                    &opt.value,
+                    input.repr(),
+                    base.repr()
+                );
+            }
+            Ok(format!("{}\n", num.to_base(base)))
+        }
+        None => {
+            // Show all bases
+            if opt.verbose {
+                println!("Converting {} from {}", &opt.value, input.repr());
+            }
+            Ok(format_all_bases(&num, input))
+        }
+    }
+}
+
+fn format_all_bases(num: &Value, input_base: Base) -> String {
+    let mut output = String::new();
+    for base in ALL_BASES {
+        let marker = if base == input_base { " *" } else { "" };
+        output.push_str(&format!(
+            "{}: {}{}\n",
+            base.short_label(),
+            num.to_base(base),
+            marker
+        ));
+    }
+    output
 }

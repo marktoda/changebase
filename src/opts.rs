@@ -2,13 +2,16 @@ use crate::base::detect_base;
 use crate::errors::BaseError;
 use clap::{Parser, Args, ValueEnum};
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum Base {
     Bin,
     Oct,
     Dec,
     Hex,
 }
+
+/// All supported bases in display order
+pub const ALL_BASES: [Base; 4] = [Base::Bin, Base::Oct, Base::Dec, Base::Hex];
 
 impl Base {
     pub fn repr(&self) -> String {
@@ -17,6 +20,16 @@ impl Base {
             Base::Oct => "Octal".to_string(),
             Base::Dec => "Decimal".to_string(),
             Base::Hex => "Hexadecimal".to_string(),
+        }
+    }
+
+    /// Short label for display (e.g., "bin", "hex")
+    pub fn short_label(&self) -> &'static str {
+        match *self {
+            Base::Bin => "bin",
+            Base::Oct => "oct",
+            Base::Dec => "dec",
+            Base::Hex => "hex",
         }
     }
 }
@@ -28,7 +41,7 @@ pub struct Opt {
     #[arg(long = "input", short = 'i', value_enum, ignore_case = true)]
     pub input: Option<Base>,
 
-    /// Output base to use
+    /// Output base to use. If not given, shows all bases
     #[arg(long = "output", short = 'o', value_enum, ignore_case = true)]
     pub output: Option<Base>,
 
@@ -98,21 +111,20 @@ impl Opt {
         }
     }
 
-    pub fn get_output(&self) -> Result<Base, BaseError> {
+    /// Returns the output base if specified, or None to indicate all bases should be shown
+    pub fn get_output(&self) -> Option<Base> {
         if let Some(base) = self.output {
-            Ok(base)
+            Some(base)
         } else if self.short_base_opts.binary_output {
-            Ok(Base::Bin)
+            Some(Base::Bin)
         } else if self.short_base_opts.octal_output {
-            Ok(Base::Oct)
+            Some(Base::Oct)
         } else if self.short_base_opts.decimal_output {
-            Ok(Base::Dec)
+            Some(Base::Dec)
         } else if self.short_base_opts.hex_output {
-            Ok(Base::Hex)
+            Some(Base::Hex)
         } else {
-            Err(BaseError::ArgError {
-                message: "No output base specified",
-            })
+            None // Show all bases
         }
     }
 }
@@ -291,7 +303,7 @@ mod tests {
         #[test]
         fn returns_explicit_output_base() {
             let opt = make_simple_opt(Some(Base::Dec), Some(Base::Hex), "255");
-            assert!(matches!(opt.get_output().unwrap(), Base::Hex));
+            assert_eq!(opt.get_output(), Some(Base::Hex));
         }
 
         #[test]
@@ -302,7 +314,7 @@ mod tests {
                 true, false, false, false,  // ob=true
                 false
             );
-            assert!(matches!(opt.get_output().unwrap(), Base::Hex));
+            assert_eq!(opt.get_output(), Some(Base::Hex));
         }
 
         #[test]
@@ -313,7 +325,7 @@ mod tests {
                 true, false, false, false,
                 false
             );
-            assert!(matches!(opt.get_output().unwrap(), Base::Bin));
+            assert_eq!(opt.get_output(), Some(Base::Bin));
         }
 
         #[test]
@@ -324,7 +336,7 @@ mod tests {
                 false, true, false, false,
                 false
             );
-            assert!(matches!(opt.get_output().unwrap(), Base::Oct));
+            assert_eq!(opt.get_output(), Some(Base::Oct));
         }
 
         #[test]
@@ -335,7 +347,7 @@ mod tests {
                 false, false, true, false,
                 false
             );
-            assert!(matches!(opt.get_output().unwrap(), Base::Dec));
+            assert_eq!(opt.get_output(), Some(Base::Dec));
         }
 
         #[test]
@@ -346,13 +358,13 @@ mod tests {
                 false, false, false, true,
                 false
             );
-            assert!(matches!(opt.get_output().unwrap(), Base::Hex));
+            assert_eq!(opt.get_output(), Some(Base::Hex));
         }
 
         #[test]
-        fn errors_when_no_output_specified() {
+        fn returns_none_when_no_output_specified() {
             let opt = make_simple_opt(Some(Base::Dec), None, "255");
-            assert!(opt.get_output().is_err());
+            assert_eq!(opt.get_output(), None);
         }
 
         #[test]
@@ -363,7 +375,7 @@ mod tests {
                 true, true, false, false,  // both ob and oo
                 false
             );
-            assert!(matches!(opt.get_output().unwrap(), Base::Bin));
+            assert_eq!(opt.get_output(), Some(Base::Bin));
         }
     }
 
